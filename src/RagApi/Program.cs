@@ -92,7 +92,7 @@ app.MapPost("/ingest-from-file", async (VectorStore store, IEmbeddingClient emb,
 
     ITextExtractor extractor = Path.GetExtension(docPath).ToLowerInvariant() switch
     {
-        ".pdf" => new PdfTextExtractor(imagesRoot, $"/rag-images/{req.DocId}"),
+        ".pdf" => new PdfTextExtractor(), // ctor args were removed from RagLib
         ".docx" => new DocxTextExtractorOpenXml(),
         _ => throw new NotSupportedException("Only .pdf and .docx.")
     };

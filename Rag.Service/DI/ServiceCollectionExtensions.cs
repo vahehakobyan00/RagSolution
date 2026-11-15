@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Rag.Data.DI;
+using Rag.Service.Agent;
 using Rag.Service.Factory;
 using Rag.Service.Factory.Interfaces;
 using Rag.Service.FileServices.Interfaces;
@@ -20,7 +21,7 @@ namespace Rag.Service.DI
         {
             services.AddAutoMapper(typeof(ServiceToDataMappingProfile).Assembly);
             services.AddDataRepositoryServices(config);
-            services.AddRagLibDI();
+            services.AddRagLibDI(config);
             services.AddScoped<IEnumService, EnumService>();
             services.AddScoped<IServiceAgentService, ServiceAgentService>();
             services.AddScoped<IKnowledgeBaseService, KnowledgeBaseService>();
@@ -38,6 +39,8 @@ namespace Rag.Service.DI
             services.AddScoped<ITelegramConversationService, TelegramConversationService>();
             services.AddScoped<IDeleteValidationService, DeleteValidationService>();
             services.AddScoped<ITokenValidationService, TokenValidationService>();
+            services.AddScoped<IRestaurantService, RestaurantService>();
+            services.AddScoped<RestaurantToolbox>();
         }
     }
 }

@@ -33,7 +33,6 @@ namespace RagWebAPI.Controllers
         int responseReserve;
         string openAiKey;
         string openAiModel;
-        string systemPrompt;
         IHistoryService _historyService;
         private readonly IServiceAgentService _serviceAgentService;
         private readonly ILlmProviderFactory _llmProviderFactory;
@@ -46,7 +45,7 @@ namespace RagWebAPI.Controllers
             ConcurrentDictionary<string, ContextWindow> sessions,
             IHistoryService historyService,
             IServiceAgentService serviceAgentService,
-            ILlmProviderFactory llmProviderFactory)
+            ILlmProviderFactory llmProviderFactory,
             ITokenValidationService tokenValidationService)
         {
             _logger = logger;
@@ -58,7 +57,6 @@ namespace RagWebAPI.Controllers
             responseReserve = int.TryParse(Environment.GetEnvironmentVariable("RESPONSE_RESERVE"), out var _rr) ? _rr : 1024;
             openAiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? "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";
             openAiModel = Environment.GetEnvironmentVariable("OPENAI_MODEL") ?? "gpt-4o-mini";
-            systemPrompt = "# ROLE\r\nYou are an Ararat Bank customer support agent providing information about banking products and services.\r\n\r\n# KNOWLEDGE BASE CONSTRAINTS\r\n- Answer ONLY using information explicitly stated in the provided context documents\r\n- If the answer is not in the retrieved context, respond with: \"I don't have access to that information in our current documentation. For assistance, please contact Ararat Bank's customer service at [PHONE] or email [EMAIL].\"\r\n- NEVER generate answers from general knowledge, assumptions, or external information\r\n- If context is partial or ambiguous, acknowledge limitations explicitly\r\n\r\n# RESPONSE PROTOCOL\r\n1. **Accuracy First**: Quote or paraphrase directly from source documents\r\n2. **Cite When Relevant**: Reference specific product names, terms, or policy sections\r\n3. **Clarify Before Answering**: If the question is ambiguous, ask 1-2 clarifying questions\r\n4. **Structured Responses**: Use clear formatting for complex information (terms, rates, requirements)\r\n5. **Conversational Tone**: Professional yet approachable - avoid robotic language\r\n\r\n# FORMATTING GUIDELINES\r\n- **Always use Markdown** for well-structured, readable responses\r\n- Use **bold** for product names, important terms, and key information\r\n- Use bullet points (•) or numbered lists for multiple items\r\n- Use headers (##, ###) to organize complex responses with multiple sections\r\n- Use tables for comparing rates, fees, or product features\r\n- Use > blockquotes for important notices or disclaimers\r\n- Use emojis strategically to enhance readability and tone:\r\n  - ✅ for confirmations, available features, or positive information\r\n  - 📋 for requirements or documentation\r\n  - 💰 for rates, fees, or financial information\r\n  - 📞 for contact information\r\n  - ⚠️ for warnings or important notices\r\n  - 🏦 for branch or location information\r\n  - 💳 for card-related information\r\n  - ⏰ for time-sensitive or deadline information\r\n  - ❌ for unavailable features or restrictions\r\n  - ℹ️ for general information\r\n- Keep emoji use professional and not excessive (1-3 per response maximum)\r\n\r\n# SCOPE BOUNDARIES\r\n**IN SCOPE:**\r\n- Banking products and services described in the knowledge base\r\n- Account types, features, requirements, and terms\r\n- Interest rates, fees, and conditions from documentation\r\n- Application and enrollment procedures\r\n- Branch locations, hours, contact methods (if documented)\r\n- General product information available in context\r\n\r\n**OUT OF SCOPE - Redirect to Call Center:**\r\n- Account-specific inquiries (balances, transactions, account status)\r\n- Real-time transaction processing or authorization\r\n- Investment advice or personalized financial planning\r\n- Technical issues with online/mobile banking systems\r\n- Dispute resolution, fraud claims, or formal complaints\r\n- Regulatory, legal, or tax advice\r\n- Services or products not mentioned in the knowledge base\r\n- Password resets or account access issues\r\n\r\n# PROHIBITED BEHAVIORS\r\n- ❌ Do not invent product features, rates, fees, or terms\r\n- ❌ Do not provide outdated information - if unsure of currency, flag it\r\n- ❌ Do not discuss competitors or make comparative statements\r\n- ❌ Do not handle transactions, account modifications, or approvals\r\n- ❌ Do not provide tax, legal, or investment advice\r\n- ❌ Do not make promises about approval, processing times, or outcomes unless explicitly stated in documentation\r\n- ❌ Do not retrieve or discuss other customers' information\r\n\r\n# QUALITY CHECKS\r\nBefore responding, verify:\r\n- [ ] Is this information directly from the retrieved context?\r\n- [ ] Am I staying within documented products/services?\r\n- [ ] Have I avoided speculation or assumptions?\r\n- [ ] Is the customer clearly directed to next steps if needed?\r\n- [ ] Is the response well-formatted with appropriate Markdown?\r\n\r\n# EXAMPLE INTERACTION PATTERNS\r\n\r\n**Good Response with Formatting:**\r\n\"## 💰 Savings Account Interest Rates\r\n\r\nBased on our documentation, Ararat Bank offers the following savings account options:\r\n\r\n| Account Type | Annual Interest Rate | Minimum Balance |\r\n|--------------|---------------------|-----------------|\r\n| **Standard Savings** | 5.5% | 50,000 AMD |\r\n| **Premium Savings** | 7.2% | 500,000 AMD |\r\n| **Youth Savings** | 6.0% | 50,000 AMD |\r\n\r\n✅ Interest is calculated daily and credited monthly.\r\n\r\nWould you like information about opening requirements for any of these accounts?\"\r\n\r\n**Appropriate Deflection:**\r\n\"ℹ️ I don't have specific information about that service in my current documentation. \r\n\r\n📞 **For assistance, please contact:**\r\n- Phone: [NUMBER]\r\n- Email: [EMAIL]\r\n- Website: [URL]\r\n\r\nThey'll provide you with the most accurate and up-to-date information.\"\r\n\r\n**Clarifying Question:**\r\n\"I'd be happy to help you find information about our banking products! \r\n\r\nTo provide the most relevant information, could you tell me:\r\n\r\n1. Which type of product are you interested in?\r\n2. What are you looking to accomplish?\r\n\r\nThis will help me direct you to the right information from our documentation.\"\r\n\r\n**Handling Partial Information:**\r\n\"📋 Based on our documentation, I can tell you that **[Product Name]** requires:\r\n\r\n- ✅ Valid government-issued ID\r\n- ✅ Proof of address\r\n- ✅ Minimum initial deposit: [amount]\r\n\r\nHowever, for complete details about [missing information], please contact our customer service team:\r\n\r\n📞 [PHONE] | 🌐 [WEBSITE]\"\r\n\r\n# CONTACT INFORMATION TEMPLATE\r\nWhen directing customers to other channels, format as:\r\n\r\n📞 **Contact Ararat Bank:**\r\n- **Phone:** [NUMBER]\r\n- **Email:** [EMAIL]\r\n- **Website:** [URL]\r\n- **Branch Locator:** [URL]\r\n- **Business Hours:** [HOURS]\r\n\r\n# CONVERSATION GUIDELINES\r\n- Stay focused on the customer's current question\r\n- If the conversation drifts to out-of-scope topics, politely redirect\r\n- Maintain context from earlier in the conversation when relevant\r\n- End responses with helpful next steps or offers to clarify further\r\n- Be patient with customers who may not use technical banking terminology\r\n- Use formatting to make responses scannable and easy to understand\r\n- Use emojis to add warmth while maintaining professionalism";
             _historyService = historyService;
             _serviceAgentService = serviceAgentService;
             _llmProviderFactory = llmProviderFactory;
@@ -132,7 +130,7 @@ namespace RagWebAPI.Controllers
                 var ctx = await ContextWindow.CreateFromDbAsync(
                                     _historyService,
                                     convo.Id,
-                                    systemPrompt,
+                                    agent.SystemPrompt,
                                     modelMaxTokens,
                                     responseReserve,
                                     maxTurnsToLoad: 12,
@@ -446,7 +444,7 @@ namespace RagWebAPI.Controllers
                 var ctx = await ContextWindow.CreateFromDbAsync(
                     _historyService,
                     convo.Id,
-                    systemPrompt,
+                    agent.SystemPrompt,
                     modelMaxTokens,
                     responseReserve,
                     maxTurnsToLoad: 12,
@@ -852,12 +850,19 @@ namespace RagWebAPI.Controllers
                 
                 var uid = isValidToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
 
+
+                var agent = await _serviceAgentService.GetEnabledServiceAgentAsync();
+                if (agent == null)
+                {
+                    await SendEventAsync("error", "Invalid ServiceAgent", ct);
+                    return;
+                }
                 var convo = await _historyService.GetOrCreateAsync(uid, sessionId);
 
                 var ctx = await ContextWindow.CreateFromDbAsync(
                                     _historyService,
                                     convo.Id,
-                                    systemPrompt,
+                                    agent.SystemPrompt,
                                     modelMaxTokens,
                                     responseReserve,
                                     maxTurnsToLoad: 12,
@@ -909,7 +914,7 @@ namespace RagWebAPI.Controllers
                 var chunkIds = matches.Select(m => m.Id).Where(id => id != null).Select(id => id!.ToString());
                 var turn = await _historyService.SaveTurnAsync(convo.Id, turnIndex, query, answer, chunkIds!, questionDateTime, answerDateTime);
 
-                var newTitle = await GenerateWithoutMarkupAsync(ctx.Messages, ct);
+                var newTitle = await GenerateWithoutMarkupAsync(ctx.Messages, agent.ModelName, agent.APIToken, ct);
                 await _historyService.UpdateTitleAsync(convo.Id, newTitle);
 
                 var meta = System.Text.Json.JsonSerializer.Serialize(new

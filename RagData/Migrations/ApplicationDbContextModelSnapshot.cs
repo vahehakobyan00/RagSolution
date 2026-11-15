@@ -22,6 +22,108 @@ namespace Rag.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Rag.Data.Entity.Booking", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("CustomerName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("EndTime")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int>("Guests")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("StartTime")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<long>("TableId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Phone");
+
+                    b.HasIndex("TableId", "StartTime");
+
+                    b.ToTable("Bookings");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1L,
+                            CreatedAt = new DateTime(2026, 11, 15, 8, 0, 0, 0, DateTimeKind.Unspecified),
+                            CustomerName = "Anna Petrosyan",
+                            EndTime = new DateTime(2026, 11, 20, 21, 0, 0, 0, DateTimeKind.Unspecified),
+                            Guests = 4,
+                            Phone = "+37491123456",
+                            StartTime = new DateTime(2026, 11, 20, 19, 0, 0, 0, DateTimeKind.Unspecified),
+                            Status = "Confirmed",
+                            TableId = 3L
+                        },
+                        new
+                        {
+                            Id = 2L,
+                            CreatedAt = new DateTime(2026, 11, 15, 8, 0, 0, 0, DateTimeKind.Unspecified),
+                            CustomerName = "David Sargsyan",
+                            EndTime = new DateTime(2026, 11, 20, 22, 0, 0, 0, DateTimeKind.Unspecified),
+                            Guests = 7,
+                            Notes = "Birthday, needs a cake plate",
+                            Phone = "+37477234567",
+                            StartTime = new DateTime(2026, 11, 20, 20, 0, 0, 0, DateTimeKind.Unspecified),
+                            Status = "Confirmed",
+                            TableId = 9L
+                        },
+                        new
+                        {
+                            Id = 3L,
+                            CreatedAt = new DateTime(2026, 11, 15, 8, 0, 0, 0, DateTimeKind.Unspecified),
+                            CustomerName = "Elena Ivanova",
+                            EndTime = new DateTime(2026, 11, 21, 15, 0, 0, 0, DateTimeKind.Unspecified),
+                            Guests = 2,
+                            Notes = "Terrace if possible",
+                            Phone = "+37455345678",
+                            StartTime = new DateTime(2026, 11, 21, 13, 0, 0, 0, DateTimeKind.Unspecified),
+                            Status = "Confirmed",
+                            TableId = 6L
+                        },
+                        new
+                        {
+                            Id = 4L,
+                            CreatedAt = new DateTime(2026, 11, 15, 8, 0, 0, 0, DateTimeKind.Unspecified),
+                            CustomerName = "John Smith",
+                            EndTime = new DateTime(2026, 11, 19, 20, 30, 0, 0, DateTimeKind.Unspecified),
+                            Guests = 5,
+                            Phone = "+37493456789",
+                            StartTime = new DateTime(2026, 11, 19, 18, 30, 0, 0, DateTimeKind.Unspecified),
+                            Status = "Cancelled",
+                            TableId = 5L
+                        });
+                });
+
             modelBuilder.Entity("Rag.Data.Entity.Conversation", b =>
                 {
                     b.Property<long>("Id")
@@ -260,6 +362,278 @@ namespace Rag.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Rag.Data.Entity.MenuItem", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsAvailable")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<decimal>("Price")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Category");
+
+                    b.ToTable("MenuItems");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1L,
+                            Category = "Salads",
+                            Description = "Tomatoes, cucumbers, sweet peppers, fresh greens and sunflower oil",
+                            IsAvailable = true,
+                            Name = "Armenian seasonal salad",
+                            Price = 2200m
+                        },
+                        new
+                        {
+                            Id = 2L,
+                            Category = "Salads",
+                            Description = "Romaine, grilled chicken, parmesan, croutons, Caesar dressing",
+                            IsAvailable = true,
+                            Name = "Caesar salad with chicken",
+                            Price = 3200m
+                        },
+                        new
+                        {
+                            Id = 3L,
+                            Category = "Salads",
+                            Description = "Bulgur with tomato paste, peppers and herbs",
+                            IsAvailable = true,
+                            Name = "Eetch",
+                            Price = 1800m
+                        },
+                        new
+                        {
+                            Id = 4L,
+                            Category = "Soups",
+                            Description = "Warm yogurt soup with wheat and herbs",
+                            IsAvailable = true,
+                            Name = "Spas",
+                            Price = 1600m
+                        },
+                        new
+                        {
+                            Id = 5L,
+                            Category = "Soups",
+                            Description = "Traditional beef soup served with garlic, lavash and radish (served until noon)",
+                            IsAvailable = true,
+                            Name = "Khash",
+                            Price = 3800m
+                        },
+                        new
+                        {
+                            Id = 6L,
+                            Category = "Soups",
+                            Description = "Cold summer soup with kefir and vegetables",
+                            IsAvailable = false,
+                            Name = "Okroshka",
+                            Price = 1700m
+                        },
+                        new
+                        {
+                            Id = 7L,
+                            Category = "Grill",
+                            Description = "Charcoal-grilled pork with onions and lavash",
+                            IsAvailable = true,
+                            Name = "Pork khorovats",
+                            Price = 4500m
+                        },
+                        new
+                        {
+                            Id = 8L,
+                            Category = "Grill",
+                            Description = "Charcoal-grilled lamb ribs",
+                            IsAvailable = true,
+                            Name = "Lamb khorovats",
+                            Price = 5200m
+                        },
+                        new
+                        {
+                            Id = 9L,
+                            Category = "Grill",
+                            Description = "Minced chicken kebab with grilled vegetables",
+                            IsAvailable = true,
+                            Name = "Chicken lula kebab",
+                            Price = 3600m
+                        },
+                        new
+                        {
+                            Id = 10L,
+                            Category = "Main courses",
+                            Description = "Minced meat and rice wrapped in grape leaves, with matsun",
+                            IsAvailable = true,
+                            Name = "Tolma",
+                            Price = 3400m
+                        },
+                        new
+                        {
+                            Id = 11L,
+                            Category = "Main courses",
+                            Description = "Slow-cooked wheat and chicken porridge",
+                            IsAvailable = true,
+                            Name = "Harissa",
+                            Price = 3000m
+                        },
+                        new
+                        {
+                            Id = 12L,
+                            Category = "Main courses",
+                            Description = "Whole trout with lemon and tarragon",
+                            IsAvailable = true,
+                            Name = "Grilled Sevan trout",
+                            Price = 5600m
+                        },
+                        new
+                        {
+                            Id = 13L,
+                            Category = "Desserts",
+                            Description = "Sweet Armenian pastry",
+                            IsAvailable = true,
+                            Name = "Gata",
+                            Price = 1200m
+                        },
+                        new
+                        {
+                            Id = 14L,
+                            Category = "Desserts",
+                            Description = "Layered pastry with walnuts and honey",
+                            IsAvailable = true,
+                            Name = "Pakhlava",
+                            Price = 1500m
+                        },
+                        new
+                        {
+                            Id = 15L,
+                            Category = "Drinks",
+                            Description = "Traditional coffee brewed in a jazzve",
+                            IsAvailable = true,
+                            Name = "Armenian coffee",
+                            Price = 800m
+                        });
+                });
+
+            modelBuilder.Entity("Rag.Data.Entity.RestaurantTable", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Location")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Seats")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Number")
+                        .IsUnique();
+
+                    b.ToTable("RestaurantTables");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1L,
+                            Location = "hall",
+                            Number = 1,
+                            Seats = 2
+                        },
+                        new
+                        {
+                            Id = 2L,
+                            Location = "hall",
+                            Number = 2,
+                            Seats = 2
+                        },
+                        new
+                        {
+                            Id = 3L,
+                            Location = "hall",
+                            Number = 3,
+                            Seats = 4
+                        },
+                        new
+                        {
+                            Id = 4L,
+                            Location = "hall",
+                            Number = 4,
+                            Seats = 4
+                        },
+                        new
+                        {
+                            Id = 5L,
+                            Location = "hall",
+                            Number = 5,
+                            Seats = 6
+                        },
+                        new
+                        {
+                            Id = 6L,
+                            Location = "terrace",
+                            Number = 6,
+                            Seats = 2
+                        },
+                        new
+                        {
+                            Id = 7L,
+                            Location = "terrace",
+                            Number = 7,
+                            Seats = 4
+                        },
+                        new
+                        {
+                            Id = 8L,
+                            Location = "terrace",
+                            Number = 8,
+                            Seats = 4
+                        },
+                        new
+                        {
+                            Id = 9L,
+                            Location = "VIP",
+                            Number = 9,
+                            Seats = 8
+                        },
+                        new
+                        {
+                            Id = 10L,
+                            Location = "VIP",
+                            Number = 10,
+                            Seats = 12
+                        });
+                });
+
             modelBuilder.Entity("Rag.Data.Entity.ServiceAgent", b =>
                 {
                     b.Property<long>("Id")
@@ -411,6 +785,17 @@ namespace Rag.Data.Migrations
                     b.ToTable("Feedbacks");
                 });
 
+            modelBuilder.Entity("Rag.Data.Entity.Booking", b =>
+                {
+                    b.HasOne("Rag.Data.Entity.RestaurantTable", "Table")
+                        .WithMany("Bookings")
+                        .HasForeignKey("TableId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Table");
+                });
+
             modelBuilder.Entity("Rag.Data.Entity.KnowledgeBaseDocument", b =>
                 {
                     b.HasOne("Rag.Data.Entity.FileItem", "FileItem")
@@ -474,6 +859,11 @@ namespace Rag.Data.Migrations
             modelBuilder.Entity("Rag.Data.Entity.Conversation", b =>
                 {
                     b.Navigation("Turns");
+                });
+
+            modelBuilder.Entity("Rag.Data.Entity.RestaurantTable", b =>
+                {
+                    b.Navigation("Bookings");
                 });
 
             modelBuilder.Entity("Rag.Data.Entity.Turn", b =>

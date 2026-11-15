@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using RagLib.Embeddings;
 using RagLib.Models;
 using RagLib.Storage;
@@ -8,22 +9,42 @@ namespace RagLib.DI
 {
     public static class ServiceCollectionExtensions
     {
-        public static void AddRagLibDI(this IServiceCollection services)
+        /// <summary>
+        /// Registers text extraction, Ollama embeddings and the pgvector store.
+        /// Values come from configuration; the legacy environment variables still win when set:
+        ///   VectorStore:ConnectionString  (env POSTGRES_CS)
+        ///   Ollama:BaseUrl                (env OLLAMA_BASE)
+        ///   Ollama:EmbedModel             (env EMBED_MODEL, default bge-m3)
+        ///   Ollama:EmbedDim               (env EMBED_DIM,   default 1024)
+        /// Missing connection settings only fail when the dependent service is first resolved,
+        /// so hosts that never touch the vector store (e.g. the Telegram bot) still start.
+        /// </summary>
+        public static void AddRagLibDI(this IServiceCollection services, IConfiguration config)
         {
             services.AddScoped<ITextExtractorFactory, TextExtractorFactory>();
-            var pg = Environment.GetEnvironmentVariable("POSTGRES_CS") ?? "Host=192.168.10.100;Port=5432;Database=VBTDatabase;Username=postgres;Password=123456";
-            var ollamaBase = Environment.GetEnvironmentVariable("OLLAMA_BASE") ?? "http://192.168.10.100:11434";
-            var model = Environment.GetEnvironmentVariable("EMBED_MODEL") ?? "bge-m3";
-            var dim = int.TryParse(Environment.GetEnvironmentVariable("EMBED_DIM"), out var d) ? d : 1024;
+
+            var pg = Setting("POSTGRES_CS", config["VectorStore:ConnectionString"]);
+            var ollamaBase = Setting("OLLAMA_BASE", config["Ollama:BaseUrl"]);
+            var model = Setting("EMBED_MODEL", config["Ollama:EmbedModel"]) ?? "bge-m3";
+            var dim = int.TryParse(Setting("EMBED_DIM", config["Ollama:EmbedDim"]), out var d) ? d : 1024;
             var openAiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? "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";
             var openAiModel = Environment.GetEnvironmentVariable("OPENAI_MODEL") ?? "gpt-4o-mini";
-            var modelMaxTokens = int.TryParse(Environment.GetEnvironmentVariable("MODEL_MAX_TOKENS"), out var _mx) ? _mx : 128_000;
-            var responseReserve = int.TryParse(Environment.GetEnvironmentVariable("RESPONSE_RESERVE"), out var _rr) ? _rr : 1024;
 
-            services.AddSingleton(new AppConfig(pg, ollamaBase, model, dim, OpenAIKey: openAiKey, OpenAIModel: openAiModel));
-            services.AddSingleton(sp => new HttpClient { BaseAddress = new Uri(ollamaBase) });
+            services.AddSingleton(new AppConfig(pg ?? string.Empty, ollamaBase ?? string.Empty, model, dim, OpenAIKey: openAiKey, OpenAIModel: openAiModel));
+            services.AddSingleton(sp => new HttpClient { BaseAddress = new Uri(Require(ollamaBase, "Ollama:BaseUrl", "OLLAMA_BASE")) });
             services.AddSingleton<IEmbeddingClient, OllamaEmbeddingClient>(sp => new OllamaEmbeddingClient(sp.GetRequiredService<HttpClient>(), model));
-            services.AddSingleton(sp => new VectorStore(pg, dim));
+            services.AddSingleton(sp => new VectorStore(Require(pg, "VectorStore:ConnectionString", "POSTGRES_CS"), dim));
         }
+
+        private static string? Setting(string envVar, string? configValue)
+        {
+            var env = Environment.GetEnvironmentVariable(envVar);
+            if (!string.IsNullOrWhiteSpace(env)) return env;
+            return string.IsNullOrWhiteSpace(configValue) ? null : configValue;
+        }
+
+        private static string Require(string? value, string configKey, string envVar) =>
+            value ?? throw new InvalidOperationException(
+                $"Missing setting '{configKey}' (appsettings.json) or environment variable {envVar}.");
     }
 }

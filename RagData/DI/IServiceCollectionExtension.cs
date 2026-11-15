@@ -20,6 +20,9 @@ namespace Rag.Data.DI
             services.AddScoped<ITurnRepository, TurnRepository>();
             services.AddScoped<ITurnFeedbackRepository, TurnFeedbackRepository>();
             services.AddScoped<ITelegramConversationRepository, TelegramConversationRepository>();
+            services.AddScoped<IMenuItemRepository, MenuItemRepository>();
+            services.AddScoped<IRestaurantTableRepository, RestaurantTableRepository>();
+            services.AddScoped<IBookingRepository, BookingRepository>();
         }
     }
 }

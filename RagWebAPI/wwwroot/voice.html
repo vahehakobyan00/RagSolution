@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Restaurant Voice Agent</title>
+<style>
+  :root {
+    --bg: #f6f4f1; --panel: #ffffff; --text: #1f1d1a; --muted: #6f6a63; --line: #e4dfd8;
+    --accent: #b5462f; --accent-ink: #ffffff; --me: #f0e6dc; --bot: #ffffff; --ok: #2f7d4f; --err: #b3261e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161513; --panel: #1f1d1a; --text: #f1ede7; --muted: #a39d94; --line: #34312c;
+      --accent: #e0694f; --accent-ink: #1a0f0b; --me: #3a2e26; --bot: #26231f; --ok: #6cc28e; --err: #f2867e;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; justify-content: center;
+  }
+  .app { width: 100%; max-width: 720px; height: 100%; display: flex; flex-direction: column; padding: 16px; gap: 12px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  h1 { font-size: 20px; margin: 0; }
+  .session { color: var(--muted); font-size: 12px; font-family: ui-monospace, monospace; }
+  button.ghost {
+    background: transparent; color: var(--text); border: 1px solid var(--line);
+    border-radius: 8px; padding: 6px 12px; cursor: pointer; font: inherit; font-size: 14px;
+  }
+  button.ghost:hover { border-color: var(--muted); }
+  #chat {
+    flex: 1; overflow-y: auto; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .empty { color: var(--muted); text-align: center; margin: auto; max-width: 380px; }
+  .msg { max-width: 85%; padding: 10px 14px; border-radius: 14px; white-space: pre-wrap; word-wrap: break-word; }
+  .me  { align-self: flex-end; background: var(--me); border-bottom-right-radius: 4px; }
+  .bot { align-self: flex-start; background: var(--bot); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+  .err { align-self: center; color: var(--err); font-size: 14px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; align-items: center; }
+  .chip { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
+  .chip.ok { color: var(--ok); border-color: var(--ok); }
+  .replay { font-size: 12px; background: none; border: none; color: var(--accent); cursor: pointer; padding: 0; }
+  .controls { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  #talk {
+    width: 128px; height: 128px; border-radius: 50%; border: none; cursor: pointer;
+    background: var(--accent); color: var(--accent-ink); font-family: inherit; font-size: 15px; font-weight: 600; line-height: 1.2;
+    box-shadow: 0 6px 20px rgba(0,0,0,.18); user-select: none; -webkit-user-select: none; touch-action: none;
+    transition: transform .08s ease, box-shadow .2s ease;
+  }
+  #talk:disabled { opacity: .55; cursor: wait; }
+  #talk.recording { transform: scale(1.06); box-shadow: 0 0 0 10px color-mix(in srgb, var(--accent) 25%, transparent); }
+  #status { color: var(--muted); font-size: 14px; min-height: 20px; text-align: center; }
+  form { display: flex; gap: 8px; width: 100%; }
+  input[type=text] {
+    flex: 1; min-width: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--panel); color: var(--text); font: inherit;
+  }
+  form button { border-radius: 10px; padding: 10px 16px; border: none; background: var(--text); color: var(--bg); font: inherit; cursor: pointer; }
+  form button:disabled { opacity: .5; cursor: wait; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Restaurant voice agent</h1>
+      <div class="session">session <span id="sid"></span></div>
+    </div>
+    <button class="ghost" id="reset" type="button">New conversation</button>
+  </header>
+
+  <div id="chat" aria-live="polite">
+    <div class="empty" id="empty">Hold the button and speak in Armenian, Russian or English. Ask about the menu, or book a table.</div>
+  </div>
+
+  <div class="controls">
+    <button id="talk" type="button">Hold to talk</button>
+    <div id="status">Hold the button (or Space) while speaking</div>
+    <form id="textForm" autocomplete="off">
+      <input id="textInput" type="text" placeholder="…or type a message">
+      <button id="sendBtn" type="submit">Send</button>
+    </form>
+  </div>
+</div>
+
+<script>
+(() => {
+  const chat = document.getElementById('chat');
+  const talk = document.getElementById('talk');
+  const statusEl = document.getElementById('status');
+  const sidEl = document.getElementById('sid');
+  const textForm = document.getElementById('textForm');
+  const textInput = document.getElementById('textInput');
+  const sendBtn = document.getElementById('sendBtn');
+
+  // ---- session (kept across reloads so the booking dialog continues) ----
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch { /* private mode */ } }
+  };
+  const newId = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
+  let sessionId = store.get('voiceSessionId') || newId();
+  store.set('voiceSessionId', sessionId);
+  sidEl.textContent = sessionId.slice(0, 8);
+
+  document.getElementById('reset').addEventListener('click', () => {
+    stopAudio();
+    sessionId = newId();
+    store.set('voiceSessionId', sessionId);
+    sidEl.textContent = sessionId.slice(0, 8);
+    chat.innerHTML = '';
+    setStatus('New conversation started');
+  });
+
+  // ---- UI helpers ----
+  const setStatus = (t) => { statusEl.textContent = t; };
+  const setBusy = (busy) => { talk.disabled = busy; sendBtn.disabled = busy; };
+
+  function addMessage(cls, text) {
+    document.getElementById('empty')?.remove();
+    const div = document.createElement('div');
+    div.className = 'msg ' + cls;
+    div.textContent = text;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+    return div;
+  }
+
+  function addBotMessage(data) {
+    const div = addMessage('bot', data.answer);
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    for (const call of data.toolCalls || []) {
+      const chip = document.createElement('span');
+      let ok = false;
+      try { const r = JSON.parse(call.result); ok = r.success === true; } catch { }
+      chip.className = 'chip' + (ok ? ' ok' : '');
+      chip.textContent = call.name + (ok ? ' ✓' : '');
+      chip.title = call.arguments + '\n→ ' + call.result;
+      meta.appendChild(chip);
+    }
+    if (data.language) {
+      const lang = document.createElement('span');
+      lang.className = 'chip';
+      lang.textContent = data.language;
+      meta.appendChild(lang);
+    }
+    const replay = document.createElement('button');
+    replay.className = 'replay';
+    replay.type = 'button';
+    replay.textContent = '▶ replay';
+    replay.addEventListener('click', () => speak(data));
+    meta.appendChild(replay);
+    div.appendChild(meta);
+  }
+
+  // ---- playback ----
+  let currentAudio = null;
+  function stopAudio() {
+    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+  }
+  async function speak(data) {
+    stopAudio();
+    if (data.audioBase64) {
+      currentAudio = new Audio('data:audio/mpeg;base64,' + data.audioBase64);
+      currentAudio.onended = () => setStatus('Hold the button to answer');
+      try { setStatus('Speaking…'); await currentAudio.play(); return; }
+      catch { setStatus('Autoplay blocked: press ▶ replay'); return; }
+    }
+    // Server TTS failed: fall back to the browser voice.
+    if ('speechSynthesis' in window) {
+      const u = new SpeechSynthesisUtterance(data.answer);
+      u.onend = () => setStatus('Hold the button to answer');
+      speechSynthesis.speak(u);
+    }
+  }
+
+  // ---- requests ----
+  async function handleResponse(res) {
+    const data = await res.json().catch(() => ({}));
+    if (data.sessionId) sessionId = data.sessionId;
+    if (!res.ok) {
+      addMessage('err', data.error || ('Request failed: ' + res.status));
+      setStatus('Hold the button (or Space) while speaking');
+      return;
+    }
+    if (data.transcript) addMessage('me', data.transcript);
+    addBotMessage(data);
+    await speak(data);
+  }
+
+  async function sendAudio(blob, ext) {
+    setBusy(true);
+    setStatus('Thinking…');
+    try {
+      const form = new FormData();
+      form.append('audio', blob, 'recording.' + ext);
+      form.append('sessionId', sessionId);
+      await handleResponse(await fetch('/voice/ask', { method: 'POST', body: form }));
+    } catch (e) {
+      addMessage('err', 'Network error: ' + e.message);
+      setStatus('');
+    } finally { setBusy(false); }
+  }
+
+  textForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const text = textInput.value.trim();
+    if (!text) return;
+    textInput.value = '';
+    stopAudio();
+    setBusy(true);
+    setStatus('Thinking…');
+    try {
+      const res = await fetch('/voice/text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, sessionId })
+      });
+      // The server echoes the typed text as transcript.
+      await handleResponse(res);
+    } catch (err) {
+      addMessage('err', 'Network error: ' + err.message);
+    } finally { setBusy(false); textInput.focus(); }
+  });
+
+  // ---- recording (MediaRecorder) ----
+  const MIME_TYPES = [
+    ['audio/webm;codecs=opus', 'webm'], ['audio/webm', 'webm'],
+    ['audio/ogg;codecs=opus', 'ogg'], ['audio/mp4', 'mp4']
+  ];
+  const [mimeType, ext] = (window.MediaRecorder && MIME_TYPES.find(([m]) => MediaRecorder.isTypeSupported(m))) || ['', 'webm'];
+
+  let stream = null, recorder = null, chunks = [], startedAt = 0, recording = false;
+
+  async function startRecording() {
+    if (recording || talk.disabled) return;
+    stopAudio(); // barge-in: stop the agent talking
+    if (!window.MediaRecorder || !navigator.mediaDevices) {
+      setStatus('This browser cannot record audio. Use the text box.');
+      return;
+    }
+    recording = true;
+    try {
+      stream = stream || await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    } catch (e) {
+      recording = false;
+      setStatus('Microphone blocked: ' + e.message);
+      return;
+    }
+    if (!recording) return; // released before permission was granted
+    chunks = [];
+    recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+    recorder.onstop = () => {
+      const duration = Date.now() - startedAt;
+      const blob = new Blob(chunks, { type: recorder.mimeType || mimeType || 'audio/webm' });
+      if (duration < 400 || blob.size < 1000) { setStatus('Too short: hold the button while you speak'); return; }
+      sendAudio(blob, ext);
+    };
+    startedAt = Date.now();
+    recorder.start();
+    talk.classList.add('recording');
+    talk.textContent = 'Listening…';
+    setStatus('Release to send');
+  }
+
+  function stopRecording() {
+    if (!recording) return;
+    recording = false;
+    talk.classList.remove('recording');
+    talk.textContent = 'Hold to talk';
+    if (recorder && recorder.state !== 'inactive') recorder.stop();
+  }
+
+  talk.addEventListener('pointerdown', (e) => { e.preventDefault(); talk.setPointerCapture(e.pointerId); startRecording(); });
+  talk.addEventListener('pointerup', stopRecording);
+  talk.addEventListener('pointercancel', stopRecording);
+  talk.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  // Space = push-to-talk (when not typing)
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && !e.repeat && document.activeElement !== textInput) { e.preventDefault(); startRecording(); }
+  });
+  document.addEventListener('keyup', (e) => {
+    if (e.code === 'Space' && document.activeElement !== textInput) { e.preventDefault(); stopRecording(); }
+  });
+})();
+</script>
+</body>
+</html>

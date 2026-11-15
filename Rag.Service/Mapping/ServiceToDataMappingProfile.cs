@@ -15,6 +15,12 @@ namespace Rag.Service.Mapping
         public ServiceToDataMappingProfile()
         {
             CreateMap<ServiceAgentDto, ServiceAgent>().ReverseMap();
+            CreateMap<MenuItem, MenuItemDto>();
+            CreateMap<RestaurantTable, RestaurantTableDto>();
+            CreateMap<Booking, BookingDto>()
+                .ForMember(d => d.TableNumber, o => o.MapFrom(s => s.Table != null ? s.Table.Number : 0))
+                .ForMember(d => d.TableLocation, o => o.MapFrom(s => s.Table != null ? s.Table.Location : string.Empty))
+                .ForMember(d => d.Status, o => o.MapFrom(s => s.Status.ToString()));
             CreateMap<ServiceAgent, ServiceAgentGridItem>()
                 .ForMember(dest => dest.LlmProviderName, opt => opt.MapFrom(src => src.LlmProvider.Name)); ;
             CreateMap<KnowledgeBaseCategoryDto, KnowledgeBaseCategory>().ReverseMap();
