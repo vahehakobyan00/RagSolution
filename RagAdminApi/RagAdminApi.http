@@ -1,0 +1,6 @@
+@RagAdminApi_HostAddress = http://localhost:5110
+
+GET {{RagAdminApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
